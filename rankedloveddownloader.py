@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 import re
 import datetime
 
-authentication_url = 'https://osu.ppy.sh/forum/ucp.php'
+authentication_url = 'https://old.ppy.sh/forum/ucp.php'
 start_date_stamp = '2007-10-07'
 date_format = '%Y-%m-%d'
 page_date = datetime.datetime.strptime(start_date_stamp, date_format)
@@ -19,15 +19,15 @@ db = {}
 usernameosu = input('Enter your osu username: ')
 passwordosu = input('Enter your osu password: ')
 payload = {
-	'action': 'login',
-	'username': usernameosu,
-	'password': passwordosu,
-	'redirect': 'index.php',
-	'sid': '',
-	'login': 'Login'
+    'action': 'login',
+    'username': usernameosu,
+    'password': passwordosu,
+    'redirect': 'index.php',
+    'sid': '',
+    'login': 'Login'
 }
 missing_maps = []
-download_url = 'https://osu.ppy.sh/d/'
+download_url = 'https://old.ppy.sh/d/'
 TAG_RE = re.compile(r'<[^>]+>')
 beatmap_save = './Songs'
 
@@ -38,13 +38,13 @@ def get_next_date(ordered_dict):
     return datetime.datetime.strptime(date_str, date_format)
  
 def get_page(key, date):
-    url_base = 'https://osu.ppy.sh/api/get_beatmaps?'
+    url_base = 'https://old.ppy.sh/api/get_beatmaps?'
     url = url_base + 'k=' + key + '&since=' + date.strftime(date_format) + '&m=0'
     page = urllib.request.urlopen(url)
     return page.read()
  
 def get_api_key():
-    print('The api key can be found at https://osu.ppy.sh/p/api')
+    print('The api key can be found at https://old.ppy.sh/p/api')
     api_key = input('Key: ')
     try:
         test = get_page(api_key, page_date)
@@ -172,19 +172,10 @@ with session() as c:
         partname = soup.find('title')
         filename = url_split(url) + ' ' + remove_tags(partname) + ".osz"
         print(filename)
-        out_folder = beatmap_save
-
-        if not os.path.exists(out_folder):
-            os.makedirs(out_folder)  # creates out_folder, including any required parent ones
-        else:
-            if not os.path.isdir(out_folder):
-                raise RuntimeError('output path must be a directory')
-
-        outpath = out_folder
-
+        outpath = beatmap_save
         print('Downloading...')
         r = c.get(download_url(url), stream=True)
-        usedfilename = 'Songs/' + str(missing_maps[increment - 1]) + '.osz'
+        usedfilename = 'Songs/' + filename
         with open(usedfilename, 'wb') as beatmap:
             for chunk in r.iter_content(chunk_size=512 * 1024):
                 if chunk: # filter out keep-alive new chunks
@@ -196,7 +187,8 @@ with session() as c:
     def remove_tags(text):
         partname = TAG_RE.sub('', text.text)
         title = re.sub('[\/*?:<>"|]', '', partname)
-        return title
+        otherthing = title.split(" (mapped")
+        return otherthing[0]
 
     def url_split(url):
         return url.rsplit('/', 1)[-1]
@@ -210,7 +202,7 @@ with session() as c:
         r = c.get(url)
         soup = BeautifulSoup(r.content, "html5lib")
         new_url_part = soup.find('a', class_='beatmap_download_link')
-        new_url = ('https://osu.ppy.sh'+ new_url_part['href'])
+        new_url = ('https://old.ppy.sh'+ new_url_part['href'])
         return new_url
 
     def difficulty():
@@ -221,7 +213,7 @@ with session() as c:
 
     def run():   
         for i in range(0, len(missing_maps) - 1):
-            url = 'https://osu.ppy.sh/s/' + missing_maps[i]
+            url = 'https://old.ppy.sh/s/' + missing_maps[i]
             download_beatmaps(url, i)
             i += 1
             time.sleep(2)
