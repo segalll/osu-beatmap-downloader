@@ -10,27 +10,28 @@ from bs4 import BeautifulSoup
 import re
 import datetime
 
-authentication_url = 'https://old.ppy.sh/forum/ucp.php'
-start_date_stamp = '2007-10-07'
-date_format = '%Y-%m-%d'
-page_date = datetime.datetime.strptime(start_date_stamp, date_format)
-api_key = ''
-db = {}
-usernameosu = input('Enter your osu username: ')
-passwordosu = input('Enter your osu password: ')
-payload = {
-    'action': 'login',
-    'username': usernameosu,
-    'password': passwordosu,
-    'redirect': 'index.php',
-    'sid': '',
-    'login': 'Login'
-}
-missing_maps = []
-download_url = 'https://old.ppy.sh/d/'
-TAG_RE = re.compile(r'<[^>]+>')
-beatmap_save = './Songs'
+rankedconfig = None
+lovedconfig = None
 
+def get_approval_config(config):
+    while(True):
+        userinput = input('Do you want all %s maps (type yes or no)?: ')
+        if userinput == 'yes':
+            return True
+        elif userinput == 'no':
+            return False
+        else:
+            print('Invalid input.')
+            
+def get_approval_things():
+    while(True):
+        rankedconfig = get_approval_config('ranked')
+        lovedconfig = get_approval_config('loved')
+        if (not rankedconfig) and (not lovedconfig):
+            print('You must answer yes to at least one of these.')
+        else:
+            return
+            
 def get_next_date(ordered_dict):
     bm_key = next(reversed(ordered_dict))
     bm = ordered_dict[bm_key]
@@ -59,7 +60,31 @@ def md5(fname):
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
- 
+
+authentication_url = 'https://old.ppy.sh/forum/ucp.php'
+start_date_stamp = '2007-10-07'
+date_format = '%Y-%m-%d'
+page_date = datetime.datetime.strptime(start_date_stamp, date_format)
+api_key = ''
+db = {}
+print("You are about to be asked to input your username and password. This is used to get through the verification on the website.")
+usernameosu = input('Enter your osu username: ')
+passwordosu = input('Enter your osu password: ')
+get_approval_things
+
+payload = {
+    'action': 'login',
+    'username': usernameosu,
+    'password': passwordosu,
+    'redirect': 'index.php',
+    'sid': '',
+    'login': 'Login'
+}
+missing_maps = []
+download_url = 'https://old.ppy.sh/d/'
+TAG_RE = re.compile(r'<[^>]+>')
+beatmap_save = './Songs'
+
 # Get API key
 if os.access('api_key', os.F_OK):
     with open('api_key', 'r') as key_file:
@@ -74,7 +99,6 @@ if os.access('md5_mtime_db', os.F_OK):
     with open('md5_mtime_db', 'r') as mmdb:
         db = json.loads(mmdb.read())
        
-# Get a list of all beatmap md5s in songs folder
 walk = next(os.walk('.\\Songs'))
 dirs = walk[1]
 path = walk[0]
@@ -101,8 +125,8 @@ with open('md5_mtime_db', 'w') as mmdb:
 print('Scanning songs folder... [maps: {:d} (100%)]  '.format(len(md5s)))
  
 # Get a dictionary of all ranked standard maps
-if os.access('ranked_maps.json', os.F_OK):
-    with open('ranked_maps.json', 'r') as rmj:
+if os.access('map_list.json', os.F_OK):
+    with open('map_list.json', 'r') as rmj:
         maps = collections.OrderedDict(json.loads(rmj.read()))
         page_date = get_next_date(maps)
 else:
@@ -112,22 +136,19 @@ num_maps = -1
  
 while (num_maps != len(maps)):
     num_maps = len(maps)
-    print('Downloading ranked/loved map list... [maps: {:d}]'.format(num_maps), end='\r')
-   
+    print('Downloading map list... [maps: {:d}]'.format(num_maps), end='\r')
     page = get_page(api_key, page_date)
     parsed_page = json.loads(page)
- 
     for bm in parsed_page:
         if bm['approved'] != '3':
             maps[bm['file_md5']] = bm
    
     page_date = get_next_date(maps)
- 
     time.sleep(1.1)
  
-print('Downloading ranked/loved map list... [maps: {:d}]'.format(num_maps))
+print('Downloading map list... [maps: {:d}]'.format(num_maps))
  
-with open('ranked_maps.json', 'w') as rmj:
+with open('map_list.json', 'w') as rmj:
     rmj.write(json.dumps(maps))
  
 # Generate a set of all mapsets that are not present
@@ -138,21 +159,26 @@ errors = 0
  
 for key in maps:
     if maps[key]['approved'] == '4':
-        loved += 1
+        if lovedconfig == True:
+            loved += 1
     elif maps[key]['approved'] in ('1', '2'):
-        ranked += 1
+        if rankedconfig == True:
+            ranked += 1
     else:
         errors += 1
     if key not in md5s:
         missing[maps[key]['beatmapset_id']] = None
  
 print('Map composition:')
-print('    Ranked:  ' + str(ranked))
-print('    Loved:   ' + str(loved))
+
+if rankedconfig == True:
+    print('    Ranked:  ' + str(ranked))
+if lovedconfig == True:
+    print('    Loved:   ' + str(loved))
 print('    Unknown: ' + str(errors))
  
 if len(missing.keys()) == 0:
-    print('All ranked/loved maps accounted for.')
+    print('All maps accounted for.')
 else:
     print('Missing maps by song id:')
     for key in missing.keys():
@@ -161,9 +187,7 @@ else:
 
 with session() as c:
     c.post(authentication_url, data=payload)
-    print("I'm now logged in")
-
-    def download_beatmaps(url, increment):
+    def download_beatmaps(url):
         req = urllib.request.Request(url)
         req.add_header("User-Agent", "Mozilla/5.0 (Windows NT 6.0; WOW64; rv:24.0) Gecko/20100101 Firefox/24.0")
         r = urllib.request.urlopen(req)
@@ -182,7 +206,6 @@ with session() as c:
                     beatmap.write(chunk)
             beatmap.close()
             print('Download completed')
-
 
     def remove_tags(text):
         partname = TAG_RE.sub('', text.text)
@@ -210,21 +233,16 @@ with session() as c:
         elif difficulty_no == 1: return 'Standard'
         elif difficulty_no == 2: return 'Expert'
 
-
     def run():   
         for i in range(0, len(missing_maps) - 1):
             url = 'https://old.ppy.sh/s/' + missing_maps[i]
-            download_beatmaps(url, i)
+            download_beatmaps(url)
             i += 1
-            time.sleep(2)
-
+            time.sleep(5)
 
 def main():
-    print('Starting Bot!')
-    time.sleep(3)
     run()
-    print('Bot has Finished!')
-
+    print('Downloads have finished!')
 
 if __name__ == "__main__":
     main()
