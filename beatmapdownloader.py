@@ -9,6 +9,7 @@ import sys
 from bs4 import BeautifulSoup
 import re
 import datetime
+import time
 
 rankedconfig = None
 lovedconfig = None
@@ -70,7 +71,7 @@ db = {}
 print("You are about to be asked to input your username and password. This is used to get through the verification on the website.")
 usernameosu = input('Enter your osu username: ')
 passwordosu = input('Enter your osu password: ')
-get_approval_things
+get_approval_things()
 
 payload = {
     'action': 'login',
@@ -83,7 +84,6 @@ payload = {
 missing_maps = []
 download_url = 'https://old.ppy.sh/d/'
 TAG_RE = re.compile(r'<[^>]+>')
-beatmap_save = './Songs'
 
 # Get API key
 if os.access('api_key', os.F_OK):
@@ -191,15 +191,13 @@ with session() as c:
         req = urllib.request.Request(url)
         req.add_header("User-Agent", "Mozilla/5.0 (Windows NT 6.0; WOW64; rv:24.0) Gecko/20100101 Firefox/24.0")
         r = urllib.request.urlopen(req)
-        data = r.read()
-        soup = BeautifulSoup(data, "html5lib")
+        soup = BeautifulSoup(r, "html5lib")
         partname = soup.find('title')
         filename = url_split(url) + ' ' + remove_tags(partname) + ".osz"
         print(filename)
-        outpath = beatmap_save
         print('Downloading...')
         r = c.get(download_url(url), stream=True)
-        usedfilename = 'Songs/' + filename
+        usedfilename = os.path.join(os.path.dirname(__file__), os.pardir, 'Songs', filename)
         with open(usedfilename, 'wb') as beatmap:
             for chunk in r.iter_content(chunk_size=512 * 1024):
                 if chunk: # filter out keep-alive new chunks
@@ -241,8 +239,10 @@ with session() as c:
             time.sleep(5)
 
 def main():
+    starttime = datetime.datetime.now()
     run()
-    print('Downloads have finished!')
+    endtime = datetime.datetime.now()
+    print('Downloads have finished! Duration: {}').format(endtime - starttime)
 
 if __name__ == "__main__":
     main()
