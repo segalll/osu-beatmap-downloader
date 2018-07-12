@@ -16,7 +16,7 @@ lovedconfig = None
 
 def get_approval_config(config):
     while(True):
-        userinput = input('Do you want all %s maps (type yes or no)?: ')
+        userinput = input('Do you want all %s maps (type yes or no)?: ' % config)
         if userinput == 'yes':
             return True
         elif userinput == 'no':
@@ -46,7 +46,7 @@ def get_page(key, date):
     return page.read()
  
 def get_api_key():
-    print('The api key can be found at https://old.ppy.sh/p/api')
+    print('The api key can be found at https://osu.ppy.sh/p/api')
     api_key = input('Key: ')
     try:
         test = get_page(api_key, page_date)
@@ -99,7 +99,7 @@ if os.access('md5_mtime_db', os.F_OK):
     with open('md5_mtime_db', 'r') as mmdb:
         db = json.loads(mmdb.read())
        
-walk = next(os.walk('.\\Songs'))
+walk = next(os.walk(os.path.join(os.path.dirname(__file__), os.pardir, 'Songs')))
 dirs = walk[1]
 path = walk[0]
 md5s = {}
@@ -181,9 +181,12 @@ if len(missing.keys()) == 0:
     print('All maps accounted for.')
 else:
     print('Missing maps by song id:')
-    for key in missing.keys():
-        print(key)
-        missing_maps.append(key)
+    with open('missing_maps.txt', 'w') as stuff:
+        for key in missing.keys():
+            print(key)
+            missing_maps.append(key)
+            stuff.write(key)
+            stuff.write('\n')
 
 with session() as c:
     c.post(authentication_url, data=payload)
