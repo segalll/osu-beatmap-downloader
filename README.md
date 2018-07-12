@@ -1,4 +1,10 @@
 # osu-beatmap-downloader
 Downloads all missing ranked and/or loved osu beatmaps!
 
-All you have to do is plop the python script in your osu! folder, make sure you have python installed, install the required packages with `pip install -r requirements.txt` and then run it with `python rankedloveddownloader.py`. You will need an osu! api key. You can get one here: https://osu.ppy.sh/p/api
+## How to use:
+1. Install Python https://www.python.org/downloads/
+2. Get an osu! api key https://osu.ppy.sh/p/api
+3. Put beatmapdownloader.py and requirements.txt into a folder within your osu! folder (I did this for organization)
+4. Open cmd and type `cd pathtofolderyoucreated`
+5. Install dependencies by typing `pip install -r requirements.txt` in the same cmd
+6. Run the script by typing `python beatmapdownloader.py` in the same cmd
