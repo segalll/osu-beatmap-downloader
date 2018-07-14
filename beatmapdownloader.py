@@ -14,6 +14,16 @@ import time
 rankedconfig = None
 lovedconfig = None
 
+def get_year():
+    while(True):
+        inputstuff = input('Enter the year you want your maps to be from (for example, if you want all maps made during or after 2017, type 2017): ')
+        if not inputstuff.isdigit():
+            print('Invalid input')
+        elif int(inputstuff) < 2007 or int(inputstuff) > datetime.datetime.now().year:
+            print('Input not within valid years (2007 - %s)' % datetime.datetime.now().year)
+        else:
+            return inputstuff
+
 def get_approval_config(config):
     while(True):
         userinput = input('Do you want all %s maps (type yes or no)?: ' % config)
@@ -62,16 +72,25 @@ def md5(fname):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
 
-authentication_url = 'https://old.ppy.sh/forum/ucp.php'
-start_date_stamp = '2007-10-07'
-date_format = '%Y-%m-%d'
-page_date = datetime.datetime.strptime(start_date_stamp, date_format)
-api_key = ''
-db = {}
 print("You are about to be asked to input your username and password. This is used to get through the verification on the website.")
 usernameosu = input('Enter your osu username: ')
 passwordosu = input('Enter your osu password: ')
 get_approval_things()
+authentication_url = 'https://old.ppy.sh/forum/ucp.php'
+yearthing = get_year()
+start_date_stamp = '%s-10-07' % yearthing
+date_format = '%Y-%m-%d'
+page_date = datetime.datetime.strptime(start_date_stamp, date_format)
+api_key = ''
+db = {}
+if os.path.isfile('missing_maps.txt'):
+    os.remove('missing_maps.txt')
+
+if os.path.isfile('md5_mtime_db'):
+    os.remove('md5_mtime_db')
+
+if os.path.isfile('map_list.json'):
+    os.remove('map_list.json')
 
 payload = {
     'action': 'login',
@@ -204,7 +223,11 @@ with session() as c:
         with open(usedfilename, 'wb') as beatmap:
             for chunk in r.iter_content(chunk_size=512 * 1024):
                 if chunk: # filter out keep-alive new chunks
-                    beatmap.write(chunk)
+                    if chunk == 'slow done, play more':
+                        print('You have reached the download limit set by the osu! website for now. Try again later.')
+                        return
+                    else:
+                        beatmap.write(chunk)
             beatmap.close()
             print('Download completed')
 
@@ -245,7 +268,7 @@ def main():
     starttime = datetime.datetime.now()
     run()
     endtime = datetime.datetime.now()
-    print('Downloads have finished! Duration: {}').format(endtime - starttime)
+    print('Downloads have finished! Duration: %s' % str(endtime - starttime))
 
 if __name__ == "__main__":
     main()
