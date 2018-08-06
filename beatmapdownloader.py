@@ -209,7 +209,11 @@ else:
 
 with session() as c:
     c.post(authentication_url, data=payload)
-    def download_beatmaps(url):
+    def download_beatmaps(url, proxies, countthing, proxynum):
+        proxy = urllib.request.ProxyHandler({'http': proxies[proxynum]})
+        opener = urllib.request.build_opener(proxy)
+        urllib.request.install_opener(opener)
+        print('Using IP ' + proxies[proxynum])
         req = urllib.request.Request(url)
         req.add_header("User-Agent", "Mozilla/5.0 (Windows NT 6.0; WOW64; rv:24.0) Gecko/20100101 Firefox/24.0")
         r = urllib.request.urlopen(req)
@@ -258,10 +262,17 @@ with session() as c:
         elif difficulty_no == 2: return 'Expert'
 
     def run():   
+        proxies = ['70.184.195.196:80', '80.211.180.201:80', '188.166.119.186:80', '168.235.93.162:8080', '191.252.196.244:80', '47.75.48.149:80', '47.52.20.235:80', '34.195.184.153:80']
+        countthing = 0
+        proxynum = 0
         for i in range(0, len(missing_maps) - 1):
             url = 'https://old.ppy.sh/s/' + missing_maps[i]
-            download_beatmaps(url)
+            download_beatmaps(url, proxies, i, proxynum)
             i += 1
+            if i > 75:
+                proxynum += 1
+                if proxynum > len(proxies) - 1:
+                    proxynum -= len(proxies)
             time.sleep(5)
 
 def main():
