@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 import re
 import datetime
 import time
+import requests
 
 rankedconfig = None
 lovedconfig = None
@@ -262,7 +263,8 @@ with session() as c:
         elif difficulty_no == 2: return 'Expert'
 
     def run():   
-        proxies = ['70.184.195.196:80', '80.211.180.201:80', '188.166.119.186:80', '168.235.93.162:8080', '191.252.196.244:80', '47.75.48.149:80', '47.52.20.235:80', '34.195.184.153:80']
+        proxies = re.findall(r'[0-9]+(?:\.[0-9]+){3}:[0-9]+', requests.get('https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list.txt').text)
+        print(proxies)
         countthing = 0
         proxynum = 0
         for i in range(0, len(missing_maps) - 1):
@@ -280,6 +282,14 @@ def main():
     run()
     endtime = datetime.datetime.now()
     print('Downloads have finished! Duration: %s' % str(endtime - starttime))
+	if os.path.isfile('missing_maps.txt'):
+		os.remove('missing_maps.txt')
+
+	if os.path.isfile('md5_mtime_db'):
+		os.remove('md5_mtime_db')
+
+	if os.path.isfile('map_list.json'):
+		os.remove('map_list.json')
 
 if __name__ == "__main__":
     main()
