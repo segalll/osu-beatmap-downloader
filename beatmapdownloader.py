@@ -282,14 +282,14 @@ def main():
     run()
     endtime = datetime.datetime.now()
     print('Downloads have finished! Duration: %s' % str(endtime - starttime))
-	if os.path.isfile('missing_maps.txt'):
-		os.remove('missing_maps.txt')
+    if os.path.isfile('missing_maps.txt'):
+        os.remove('missing_maps.txt')
 
-	if os.path.isfile('md5_mtime_db'):
-		os.remove('md5_mtime_db')
+    if os.path.isfile('md5_mtime_db'):
+        os.remove('md5_mtime_db')
 
-	if os.path.isfile('map_list.json'):
-		os.remove('map_list.json')
+    if os.path.isfile('map_list.json'):
+        os.remove('map_list.json')
 
 if __name__ == "__main__":
     main()
