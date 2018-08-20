@@ -264,7 +264,6 @@ with session() as c:
 
     def run():   
         proxies = re.findall(r'[0-9]+(?:\.[0-9]+){3}:[0-9]+', requests.get('https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list.txt').text)
-        print(proxies)
         countthing = 0
         proxynum = 0
         for i in range(0, len(missing_maps) - 1):
