@@ -2,13 +2,14 @@ import requests
 import os
 import urllib
 import datetime
+import re
 
 def getDownloadedBeatmaps():
     maps = set([int(f.name.split(" ")[0]) for f in os.scandir("../Songs/") if f.is_dir() and f.name.split(" ")[0].isdigit()])
     print("\nScanned songs folder\n")
     return maps
 
-def getAllBeatmaps(key, date, status): # status is 4 = loved, 3 = qualified, 2 = approved, 1 = ranked, 0 = pending, -1 = WIP, -2 = graveyard
+def getAllBeatmaps(key, date):
     maps = []
     newMapLen = 500
     while newMapLen == 500: # request yields 500 results until we run out of maps to fetch
@@ -20,7 +21,16 @@ def getAllBeatmaps(key, date, status): # status is 4 = loved, 3 = qualified, 2 =
         date = lastMap["approved_date"]
         print('Downloading map list... [maps: {:d}]'.format(len(maps)), end='\r')
     print('Downloaded map list... [maps: {:d}]\n'.format(len(maps)))
-    return set([int(m["beatmapset_id"]) for m in maps if int(m["approved"]) in status])
+    return maps
+
+def filterAllBeatmaps(maps, status, starsFilter): # status is 4 = loved, 3 = qualified, 2 = approved, 1 = ranked, 0 = pending, -1 = WIP, -2 = graveyard
+    print("Filtered beatmaps")
+    if starsFilter == "n":
+        return set([int(m["beatmapset_id"]) for m in maps if int(m["approved"]) in status])
+    elif starsFilter[0] == "<=":
+        return set([int(m["beatmapset_id"]) for m in maps if int(m["approved"]) in status and float(m["difficultyrating"]) <= starsFilter[1]])
+    else:
+        return set([int(m["beatmapset_id"]) for m in maps if int(m["approved"]) in status and float(m["difficultyrating"]) >= starsFilter[1]])
 
 def getMissingBeatmaps(downloaded, all):
     return sorted(all.difference(downloaded))
@@ -93,10 +103,29 @@ def getApprovedList():
         approvedList.append(4)
     return approvedList
 
+def getStarsFilter():
+    while True:
+        filterType = input("Filter star rating (>=, <=, n for none): ")
+        if filterType != ">=" and filterType != "<=" and filterType != "n":
+            print("Invalid input entered. Try again.")
+            continue
+        else:
+            if filterType == "n":
+                return filterType
+            while True:
+                stars = input("Stars %s: " % filterType)
+                if re.match(r'^-?\d+(?:\.\d+)?$', stars) is None:
+                    print("Invalid input entered. Try again.")
+                    continue
+                else:
+                    return (filterType, float(stars))
+
 apiKey = getApiKey()
 date = getDate()
 approvedList = getApprovedList()
+starsFilter = getStarsFilter()
 downloadedMaps = getDownloadedBeatmaps()
-allMaps = getAllBeatmaps(apiKey, date, approvedList)
-missingMaps = getMissingBeatmaps(downloadedMaps, allMaps)
+allMaps = getAllBeatmaps(apiKey, date)
+filteredMaps = filterAllBeatmaps(allMaps, approvedList, starsFilter)
+missingMaps = getMissingBeatmaps(downloadedMaps, filteredMaps)
 downloadMissingBeatmaps(missingMaps)
