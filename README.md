@@ -1,5 +1,5 @@
 # osu-beatmap-downloader
-Downloads all missing ranked and/or loved osu beatmaps since a given year!
+Downloads all missing ranked, approved, qualified, and/or loved osu beatmaps since a given year!
 
 ## How to use:
 1. Install Python3 https://www.python.org/downloads/
