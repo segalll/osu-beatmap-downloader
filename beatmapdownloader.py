@@ -38,7 +38,7 @@ def getMissingBeatmaps(downloaded, all):
 def downloadMissingBeatmaps(missing):
     i = 1
     for m in missing:
-        r = requests.get("https://bloodcat.com/osu/s/%d" % m)
+        r = requests.get("https://bloodcat.com/osu/s/%d" % m, stream=True)
         if r.headers["Content-Type"] != "application/octet-stream":
             print("%s failed, please download manually" % m)
             i += 1
