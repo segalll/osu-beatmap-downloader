@@ -38,10 +38,12 @@ def getMissingBeatmaps(downloaded, all):
 def downloadMissingBeatmaps(missing):
     i = 1
     for m in missing:
-        r = requests.get("https://bloodcat.com/osu/s/%d" % m)
+        r = requests.get("https://bloodcat.com/osu/s/%d" % m, stream=True)
         d = r.headers["content-disposition"]
         filename = urllib.parse.unquote(d.split('filename="')[1].split('";')[0])
-        open("..\\Songs\\%s" % filename, "wb").write(r.content)
+        with open("..\\Songs\\%s" % filename, "wb") as f:
+            for chunk in r.content:
+                f.write(chunk)
         print("Downloaded %s (%s/%s)" % (filename, i, len(missing)))
         i += 1
     print("\nDownloads complete")
