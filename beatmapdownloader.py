@@ -38,13 +38,13 @@ def getMissingBeatmaps(downloaded, all):
 def downloadMissingBeatmaps(missing):
     i = 1
     for m in missing:
-        r = requests.get("https://bloodcat.com/osu/s/%d" % m, stream=True)
+        r = requests.get("https://chimu.moe/d/%d" % m, stream=True)
         if r.headers["Content-Type"] != "application/octet-stream":
             print("%s failed, please download manually" % m)
             i += 1
             continue
         d = r.headers["Content-Disposition"]
-        filename = urllib.parse.unquote(d.split('filename="')[1].split('";')[0])
+        filename = urllib.parse.unquote(d.split('filename="')[1].split('";')[0]).replace("/", "_").replace("\"", "")
         with open("..\\Songs\\%s" % filename, "wb") as f:
             for chunk in r.iter_content(4096):
                 f.write(chunk)
