@@ -44,7 +44,7 @@ def downloadMissingBeatmaps(missing):
             i += 1
             continue
         d = r.headers["Content-Disposition"]
-        filename = urllib.parse.unquote(d.split('filename="')[1].split('";')[0]).replace("/", "_").replace("\"", "")
+        filename = urllib.parse.unquote(d.split('filename="')[1].split('";')[0]).replace("/", "_").replace("\"", "").replace("*", " ")
         with open("..\\Songs\\%s" % filename, "wb") as f:
             for chunk in r.iter_content(4096):
                 f.write(chunk)
