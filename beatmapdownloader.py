@@ -7,6 +7,7 @@ import unicodedata
 import threading
 import time
 
+from enum import Enum
 from multiprocessing.dummy import Pool as ThreadPool
 
 g_pool = ThreadPool(16)
@@ -16,6 +17,12 @@ g_start = time.time()
 # To set later
 g_beatmapsCounter = 0
 g_beatmapsTotal = 0
+
+class OsuMode(Enum):
+    OSU       = 0
+    OSU_TAIKO = 1
+    OSU_CTB   = 2
+    OSU_MANIA = 3
 
 def get_milli_delta_time():
     global g_start
@@ -42,11 +49,14 @@ def getDownloadedBeatmaps():
     print("\nScanned songs folder - (%d songs scanned)\n" % (len(maps),))
     return maps
 
-def getAllBeatmaps(key, date):
+def getAllBeatmaps(key, date, mode=0):
+    """
+    mode -> 0:OSU, 1:TAIKO, 2:CTB, 3:OSU_MANIA
+    """
     maps = []
     newMapLen = 500
     while newMapLen == 500: # request yields 500 results until we run out of maps to fetch
-        response = requests.get("https://osu.ppy.sh/api/get_beatmaps?k=%s&m=0&since=%s" % (key, date))
+        response = requests.get("https://osu.ppy.sh/api/get_beatmaps?k=%s&m=%d&since=%s" % (key, mode, date))
         newMaps = response.json()
         newMapLen = len(newMaps)
         maps += newMaps
@@ -178,13 +188,32 @@ def getStarsFilter():
                 else:
                     return (filterType, float(stars))
 
+def getOsuMode():
+    while True:
+        osu_mode = input("Osu mode (0 -> osu, 1 -> taiko, 2 -> CtB, 3 -> osu!mania): ")
+        if osu_mode.lower() not in set(["osu", "taiko", "ctb", "mania", "osu!mania", "0", "1", "2", "3"]):
+            print("Invalid input enetered. Try again.")
+            continue
+        else:
+            if osu_mode.isdigit():
+                return int(osu_mode)
+            else:
+                return {
+                    "osu": 0,
+                    "taiko": 1,
+                    "ctb": 2,
+                    "mania": 3,
+                    "osu!mania": 3
+                }[osu_mode]
+
 def work():
     apiKey = getApiKey()
     date = getDate()
     approvedList = getApprovedList()
     starsFilter = getStarsFilter()
+    osu_mode = getOsuMode()
     downloadedMaps = getDownloadedBeatmaps()
-    allMaps = getAllBeatmaps(apiKey, date)
+    allMaps = getAllBeatmaps(apiKey, date, osu_mode)
     filteredMaps = filterAllBeatmaps(allMaps, approvedList, starsFilter)
     missingMaps = getMissingBeatmaps(downloadedMaps, filteredMaps)
     downloadMissingBeatmaps(missingMaps)
