@@ -9,7 +9,7 @@ import time
 
 from multiprocessing.dummy import Pool as ThreadPool
 
-g_pool = ThreadPool(8)
+g_pool = ThreadPool(16)
 g_threadLock = threading.Lock()
 g_start = time.time()
 
@@ -38,8 +38,8 @@ def slugify(value, allow_unicode=False):
     return re.sub(r'[-\s]+', '-', value).strip('-_')
 
 def getDownloadedBeatmaps():
-    maps = set([int(f.name.split(" ")[0]) for f in os.scandir("../Songs/") if f.is_dir() and f.name.split(" ")[0].isdigit()])
-    print("\nScanned songs folder\n")
+    maps = set([int(re.split(r'\D+', f.name)[0]) for f in os.scandir("../Songs/") if f.is_dir() and re.split(r'\D+', f.name)[0].isdigit()])
+    print("\nScanned songs folder - (%d songs scanned)\n" % (len(maps),))
     return maps
 
 def getAllBeatmaps(key, date):
@@ -81,6 +81,10 @@ def downloadSingleBeatmap(m):
         return m
     d = r.headers["Content-Disposition"]
     filename = slugify(urllib.parse.unquote(d.split('filename="')[1].split('";')[0]))
+    if filename.endswith("osz") and filename[-4] != ".":
+        filename = filename[:-4] + ".osz"
+    else:
+        filename = filename + ".osz"
     with open("..\\Songs\\%s" % filename, "wb") as f:
         for chunk in r.iter_content(4096):
             f.write(chunk)
