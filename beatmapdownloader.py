@@ -3,6 +3,39 @@ import os
 import urllib
 import datetime
 import re
+import unicodedata
+import threading
+import time
+
+from multiprocessing.dummy import Pool as ThreadPool
+
+g_pool = ThreadPool(8)
+g_threadLock = threading.Lock()
+g_start = time.time()
+
+# To set later
+g_beatmapsCounter = 0
+g_beatmapsTotal = 0
+
+def get_milli_delta_time():
+    global g_start
+    return round((time.time() - g_start) * 1000.0)
+
+def slugify(value, allow_unicode=False):
+    """
+    Taken from https://github.com/django/django/blob/master/django/utils/text.py
+    Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
+    dashes to single dashes. Remove characters that aren't alphanumerics,
+    underscores, or hyphens. Convert to lowercase. Also strip leading and
+    trailing whitespace, dashes, and underscores.
+    """
+    value = str(value)
+    if allow_unicode:
+        value = unicodedata.normalize('NFKC', value)
+    else:
+        value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value.lower())
+    return re.sub(r'[-\s]+', '-', value).strip('-_')
 
 def getDownloadedBeatmaps():
     maps = set([int(f.name.split(" ")[0]) for f in os.scandir("../Songs/") if f.is_dir() and f.name.split(" ")[0].isdigit()])
@@ -35,21 +68,36 @@ def filterAllBeatmaps(maps, status, starsFilter): # status is 4 = loved, 3 = qua
 def getMissingBeatmaps(downloaded, all):
     return sorted(all.difference(downloaded))
 
+def downloadSingleBeatmap(m):
+    global g_beatmapsCounter
+    global g_beatmapsTotal
+    global g_threadLock
+
+    r = requests.get("https://chimu.moe/d/%d" % m, stream=True)
+    if r.headers["Content-Type"] != "application/octet-stream":
+        print("%s failed, please download manually" % m)
+        with g_threadLock:
+            g_beatmapsCounter += 1
+        return m
+    d = r.headers["Content-Disposition"]
+    filename = slugify(urllib.parse.unquote(d.split('filename="')[1].split('";')[0]))
+    with open("..\\Songs\\%s" % filename, "wb") as f:
+        for chunk in r.iter_content(4096):
+            f.write(chunk)
+    delta = get_milli_delta_time()
+    with g_threadLock:
+        print("[%d ms] Downloaded %s (%s/%s)" % (delta, filename, g_beatmapsCounter, g_beatmapsTotal))
+        g_beatmapsCounter += 1
+    return m
+
 def downloadMissingBeatmaps(missing):
-    i = 1
-    for m in missing:
-        r = requests.get("https://chimu.moe/d/%d" % m, stream=True)
-        if r.headers["Content-Type"] != "application/octet-stream":
-            print("%s failed, please download manually" % m)
-            i += 1
-            continue
-        d = r.headers["Content-Disposition"]
-        filename = urllib.parse.unquote(d.split('filename="')[1].split('";')[0]).replace("/", "_").replace("\"", "").replace("*", " ")
-        with open("..\\Songs\\%s" % filename, "wb") as f:
-            for chunk in r.iter_content(4096):
-                f.write(chunk)
-        print("Downloaded %s (%s/%s)" % (filename, i, len(missing)))
-        i += 1
+    global g_beatmapsCounter
+    global g_beatmapsTotal
+    global g_pool
+
+    g_beatmapsCounter = 1
+    g_beatmapsTotal = len(missing)
+    list(g_pool.imap_unordered(downloadSingleBeatmap, list(missing)))
     print("\nDownloads complete")
 
 def apiKeyIsValid(apiKey):
@@ -126,12 +174,16 @@ def getStarsFilter():
                 else:
                     return (filterType, float(stars))
 
-apiKey = getApiKey()
-date = getDate()
-approvedList = getApprovedList()
-starsFilter = getStarsFilter()
-downloadedMaps = getDownloadedBeatmaps()
-allMaps = getAllBeatmaps(apiKey, date)
-filteredMaps = filterAllBeatmaps(allMaps, approvedList, starsFilter)
-missingMaps = getMissingBeatmaps(downloadedMaps, filteredMaps)
-downloadMissingBeatmaps(missingMaps)
+def work():
+    apiKey = getApiKey()
+    date = getDate()
+    approvedList = getApprovedList()
+    starsFilter = getStarsFilter()
+    downloadedMaps = getDownloadedBeatmaps()
+    allMaps = getAllBeatmaps(apiKey, date)
+    filteredMaps = filterAllBeatmaps(allMaps, approvedList, starsFilter)
+    missingMaps = getMissingBeatmaps(downloadedMaps, filteredMaps)
+    downloadMissingBeatmaps(missingMaps)
+
+if __name__ == "__main__":
+    work()
