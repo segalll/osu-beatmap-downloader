@@ -47,7 +47,7 @@ def slugify(value, allow_unicode=False):
     return re.sub(r'[-\s]+', '-', value).strip('-_')
 
 def getDownloadedBeatmaps():
-    maps = set([int(re.split(r'\D+', f.name)[0]) for f in os.scandir("../Songs/") if f.is_dir() and re.split(r'\D+', f.name)[0].isdigit()])
+    maps = set([int(re.split(r'\D+', f.name)[0]) for f in os.scandir("./Songs/") if f.is_dir() and re.split(r'\D+', f.name)[0].isdigit()])
     print("\nScanned songs folder - (%d songs scanned)\n" % (len(maps),))
     return maps
 
@@ -86,7 +86,8 @@ def downloadSingleBeatmap(m):
     global g_threadLock
 
     r = requests.get("https://chimu.moe/d/%d" % m, stream=True)
-    if r.headers["Content-Type"] != "application/octet-stream":
+    if r.headers["Content-Type"] not in ["application/octet-stream", "application/zip"]:
+        print("Content-Type: ", r.headers["Content-Type"])
         print("%s failed, please download manually" % m)
         with g_threadLock:
             g_beatmapsCounter += 1
@@ -97,7 +98,7 @@ def downloadSingleBeatmap(m):
         filename = filename[:-4] + ".osz"
     else:
         filename = filename + ".osz"
-    with open("..\\Songs\\%s" % filename, "wb") as f:
+    with open("./Songs/%s" % filename, "wb") as f:
         for chunk in r.iter_content(4096):
             f.write(chunk)
     delta = get_milli_delta_time()
