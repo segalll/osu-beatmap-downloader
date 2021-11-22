@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import requests
 import os
 import urllib
@@ -220,3 +222,4 @@ def work():
 
 if __name__ == "__main__":
     work()
+
