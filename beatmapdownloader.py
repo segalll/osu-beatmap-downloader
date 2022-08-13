@@ -1,8 +1,8 @@
-import requests
-import os
-import urllib
 import datetime
+import os
 import re
+import requests
+import urllib
 
 def getDownloadedBeatmaps():
     maps = set([int(f.name.split(" ")[0]) for f in os.scandir("../Songs/") if f.is_dir() and f.name.split(" ")[0].isdigit()])
@@ -38,14 +38,15 @@ def getMissingBeatmaps(downloaded, all):
 def downloadMissingBeatmaps(missing):
     i = 1
     for m in missing:
-        r = requests.get("https://chimu.moe/d/%d" % m, stream=True)
+        r = requests.get("https://api.chimu.moe/v1/download/%d" % m, stream=True)
         if r.headers["Content-Type"] != "application/octet-stream":
             print("%s failed, please download manually" % m)
             i += 1
             continue
         d = r.headers["Content-Disposition"]
-        filename = urllib.parse.unquote(d.split('filename="')[1].split('";')[0]).replace("/", "_").replace("\"", "").replace("*", " ")
-        with open("..\\Songs\\%s" % filename, "wb") as f:
+        filename = urllib.parse.unquote(d.split('filename="')[1].split('";')[0])
+        filename = re.sub(r'[\/\\\*:\?"\<>\|]', '', filename)
+        with open("../Songs/%s" % filename, "wb") as f:
             for chunk in r.iter_content(4096):
                 f.write(chunk)
         print("Downloaded %s (%s/%s)" % (filename, i, len(missing)))
