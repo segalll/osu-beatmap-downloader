@@ -1,26 +1,70 @@
-import datetime
-import os
-import re
+#!/usr/bin/env python3
+
 import requests
+import os
 import urllib
+import datetime
+import re
+import unicodedata
+import threading
+import time
+
+from enum import Enum
+from multiprocessing.dummy import Pool as ThreadPool
+
+g_pool = ThreadPool(16)
+g_threadLock = threading.Lock()
+g_start = time.time()
+
+# To set later
+g_beatmapsCounter = 0
+g_beatmapsTotal = 0
+
+class OsuMode(Enum):
+    OSU       = 0
+    OSU_TAIKO = 1
+    OSU_CTB   = 2
+    OSU_MANIA = 3
+
+def get_milli_delta_time():
+    global g_start
+    return round((time.time() - g_start) * 1000.0)
+
+def slugify(value, allow_unicode=False):
+    """
+    Taken from https://github.com/django/django/blob/master/django/utils/text.py
+    Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
+    dashes to single dashes. Remove characters that aren't alphanumerics,
+    underscores, or hyphens. Convert to lowercase. Also strip leading and
+    trailing whitespace, dashes, and underscores.
+    """
+    value = str(value)
+    if allow_unicode:
+        value = unicodedata.normalize('NFKC', value)
+    else:
+        value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value.lower())
+    return re.sub(r'[-\s]+', '-', value).strip('-_')
 
 def getDownloadedBeatmaps():
-    maps = set([int(f.name.split(" ")[0]) for f in os.scandir("../Songs/") if f.is_dir() and f.name.split(" ")[0].isdigit()])
-    print("\nScanned songs folder\n")
+    maps = set([int(re.split(r'\D+', f.name)[0]) for f in os.scandir("./Songs/") if f.is_dir() and re.split(r'\D+', f.name)[0].isdigit()])
+    print("\nScanned songs folder - (%d songs scanned)\n" % (len(maps),))
     return maps
 
-def getAllBeatmaps(key, date):
+def getAllBeatmaps(key, date, mode=0):
+    """
+    mode -> 0:OSU, 1:TAIKO, 2:CTB, 3:OSU_MANIA
+    """
     maps = []
     newMapLen = 500
     while newMapLen == 500: # request yields 500 results until we run out of maps to fetch
-        response = requests.get("https://osu.ppy.sh/api/get_beatmaps?k=%s&m=0&since=%s" % (key, date))
+        response = requests.get("https://osu.ppy.sh/api/get_beatmaps?k=%s&m=%d&since=%s" % (key, mode, date))
         newMaps = response.json()
         newMapLen = len(newMaps)
         maps += newMaps
-        if newMapLen > 0:
-            lastMap = newMaps[-1]
-            date = lastMap["approved_date"]
-            print('Downloading map list... [maps: {:d}]'.format(len(maps)), end='\r')
+        lastMap = newMaps[-1]
+        date = lastMap["approved_date"]
+        print('Downloading map list... [maps: {:d}]'.format(len(maps)), end='\r')
     print('Downloaded map list... [maps: {:d}]\n'.format(len(maps)))
     return maps
 
@@ -36,30 +80,49 @@ def filterAllBeatmaps(maps, status, starsFilter): # status is 4 = loved, 3 = qua
 def getMissingBeatmaps(downloaded, all):
     return sorted(all.difference(downloaded))
 
+def downloadSingleBeatmap(m):
+    global g_beatmapsCounter
+    global g_beatmapsTotal
+    global g_threadLock
+
+    r = requests.get("https://chimu.moe/d/%d" % m, stream=True)
+    if r.headers["Content-Type"] not in ["application/octet-stream", "application/zip"]:
+        print("Content-Type: ", r.headers["Content-Type"])
+        print("%s failed, please download manually" % m)
+        with g_threadLock:
+            g_beatmapsCounter += 1
+        return m
+    d = r.headers["Content-Disposition"]
+    filename = slugify(urllib.parse.unquote(d.split('filename="')[1].split('";')[0]))
+    if filename.endswith("osz") and filename[-4] != ".":
+        filename = filename[:-4] + ".osz"
+    else:
+        filename = filename + ".osz"
+    with open("./Songs/%s" % filename, "wb") as f:
+        for chunk in r.iter_content(4096):
+            f.write(chunk)
+    delta = get_milli_delta_time()
+    with g_threadLock:
+        print("[%d ms] Downloaded %s (%s/%s)" % (delta, filename, g_beatmapsCounter, g_beatmapsTotal))
+        g_beatmapsCounter += 1
+    return m
+
 def downloadMissingBeatmaps(missing):
-    i = 1
-    manual = []
-    for m in missing:
-        r = requests.get("https://api.chimu.moe/v1/download/%d" % m, stream=True)
-        if r.headers["Content-Type"] != "application/octet-stream":
-            print("%s failed, please download manually" % m)
-            manual.append(m)
-            i += 1
-            continue
-        d = r.headers["Content-Disposition"]
-        filename = urllib.parse.unquote(d.split('filename=')[1])
-        filename = re.sub(r'[\/\\\*:\?"\<>\|]', '', filename)
-        with open("../Songs/%s" % filename, "wb") as f:
-            for chunk in r.iter_content(4096):
-                f.write(chunk)
-        print("Downloaded %s (%s/%s)" % (filename, i, len(missing)))
-        i += 1
+    global g_beatmapsCounter
+    global g_beatmapsTotal
+    global g_pool
+
+    g_beatmapsCounter = 1
+    g_beatmapsTotal = len(missing)
+    list(g_pool.imap_unordered(downloadSingleBeatmap, list(missing)))
     print("\nDownloads complete")
-    return manual
 
 def apiKeyIsValid(apiKey):
     response = requests.get("https://osu.ppy.sh/api/get_beatmaps?k=%s&m=0&limit=1" % apiKey)
-    return "error" not in response.json()
+    if "error" in response.json():
+        return False
+    else:
+        return True
 
 def getApiKey():
     if os.path.exists("api_key"):
@@ -93,7 +156,7 @@ def shouldDownloadApprovedStatus(approvedStatus):
             print("Invalid input entered. Try again.")
             continue
         else:
-            return approved == "y"
+            return True if approved == "y" else False 
 
 def getApprovedList():
     ranked = shouldDownloadApprovedStatus("ranked")
@@ -128,20 +191,36 @@ def getStarsFilter():
                 else:
                     return (filterType, float(stars))
 
-def main():
+def getOsuMode():
+    while True:
+        osu_mode = input("Osu mode (0 -> osu, 1 -> taiko, 2 -> CtB, 3 -> osu!mania): ")
+        if osu_mode.lower() not in set(["osu", "taiko", "ctb", "mania", "osu!mania", "0", "1", "2", "3"]):
+            print("Invalid input enetered. Try again.")
+            continue
+        else:
+            if osu_mode.isdigit():
+                return int(osu_mode)
+            else:
+                return {
+                    "osu": 0,
+                    "taiko": 1,
+                    "ctb": 2,
+                    "mania": 3,
+                    "osu!mania": 3
+                }[osu_mode]
+
+def work():
     apiKey = getApiKey()
     date = getDate()
     approvedList = getApprovedList()
     starsFilter = getStarsFilter()
+    osu_mode = getOsuMode()
     downloadedMaps = getDownloadedBeatmaps()
-    allMaps = getAllBeatmaps(apiKey, date)
+    allMaps = getAllBeatmaps(apiKey, date, osu_mode)
     filteredMaps = filterAllBeatmaps(allMaps, approvedList, starsFilter)
     missingMaps = getMissingBeatmaps(downloadedMaps, filteredMaps)
-    needManualDownload = downloadMissingBeatmaps(missingMaps)
-    if len(needManualDownload) > 0:
-        print("\nThe following maps require manual download:")
-        for m in needManualDownload:
-            print("https://osu.ppy.sh/beatmapsets/%d" % m)
+    downloadMissingBeatmaps(missingMaps)
 
 if __name__ == "__main__":
-    main()
+    work()
+
