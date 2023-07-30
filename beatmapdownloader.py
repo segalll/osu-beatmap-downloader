@@ -17,9 +17,10 @@ def getAllBeatmaps(key, date):
         newMaps = response.json()
         newMapLen = len(newMaps)
         maps += newMaps
-        lastMap = newMaps[-1]
-        date = lastMap["approved_date"]
-        print('Downloading map list... [maps: {:d}]'.format(len(maps)), end='\r')
+        if newMapLen > 0:
+            lastMap = newMaps[-1]
+            date = lastMap["approved_date"]
+            print('Downloading map list... [maps: {:d}]'.format(len(maps)), end='\r')
     print('Downloaded map list... [maps: {:d}]\n'.format(len(maps)))
     return maps
 
@@ -37,14 +38,16 @@ def getMissingBeatmaps(downloaded, all):
 
 def downloadMissingBeatmaps(missing):
     i = 1
+    manual = []
     for m in missing:
         r = requests.get("https://api.chimu.moe/v1/download/%d" % m, stream=True)
         if r.headers["Content-Type"] != "application/octet-stream":
             print("%s failed, please download manually" % m)
+            manual.append(m)
             i += 1
             continue
         d = r.headers["Content-Disposition"]
-        filename = urllib.parse.unquote(d.split('filename="')[1].split('";')[0])
+        filename = urllib.parse.unquote(d.split('filename=')[1])
         filename = re.sub(r'[\/\\\*:\?"\<>\|]', '', filename)
         with open("../Songs/%s" % filename, "wb") as f:
             for chunk in r.iter_content(4096):
@@ -52,13 +55,11 @@ def downloadMissingBeatmaps(missing):
         print("Downloaded %s (%s/%s)" % (filename, i, len(missing)))
         i += 1
     print("\nDownloads complete")
+    return manual
 
 def apiKeyIsValid(apiKey):
     response = requests.get("https://osu.ppy.sh/api/get_beatmaps?k=%s&m=0&limit=1" % apiKey)
-    if "error" in response.json():
-        return False
-    else:
-        return True
+    return "error" not in response.json()
 
 def getApiKey():
     if os.path.exists("api_key"):
@@ -92,7 +93,7 @@ def shouldDownloadApprovedStatus(approvedStatus):
             print("Invalid input entered. Try again.")
             continue
         else:
-            return True if approved == "y" else False 
+            return approved == "y"
 
 def getApprovedList():
     ranked = shouldDownloadApprovedStatus("ranked")
@@ -127,12 +128,20 @@ def getStarsFilter():
                 else:
                     return (filterType, float(stars))
 
-apiKey = getApiKey()
-date = getDate()
-approvedList = getApprovedList()
-starsFilter = getStarsFilter()
-downloadedMaps = getDownloadedBeatmaps()
-allMaps = getAllBeatmaps(apiKey, date)
-filteredMaps = filterAllBeatmaps(allMaps, approvedList, starsFilter)
-missingMaps = getMissingBeatmaps(downloadedMaps, filteredMaps)
-downloadMissingBeatmaps(missingMaps)
+def main():
+    apiKey = getApiKey()
+    date = getDate()
+    approvedList = getApprovedList()
+    starsFilter = getStarsFilter()
+    downloadedMaps = getDownloadedBeatmaps()
+    allMaps = getAllBeatmaps(apiKey, date)
+    filteredMaps = filterAllBeatmaps(allMaps, approvedList, starsFilter)
+    missingMaps = getMissingBeatmaps(downloadedMaps, filteredMaps)
+    needManualDownload = downloadMissingBeatmaps(missingMaps)
+    if len(needManualDownload) > 0:
+        print("\nThe following maps require manual download:")
+        for m in needManualDownload:
+            print("https://osu.ppy.sh/beatmapsets/%d" % m)
+
+if __name__ == "__main__":
+    main()
