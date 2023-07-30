@@ -3,7 +3,7 @@
 [![Actions Status](https://github.com/segalll/osu-beatmap-downloader/workflows/CI/badge.svg)](https://github.com/segalll/osu-beatmap-downloader/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Downloads missing maps given a search query in bulk.
+Downloads missing [osu!](https://osu.ppy.sh/home) beatmapsets in bulk.
 
 ## Usage
 ### Download Python 3 (if necessary)
@@ -33,3 +33,5 @@ pip install -r requirements.txt
 ```
 python beatmapdownloader.py
 ```
+
+Search queries work like the in-game search interface. Valid filters can be found under the Search section of https://osu.ppy.sh/wiki/en/Client/Interface
