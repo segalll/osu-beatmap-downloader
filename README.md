@@ -1,10 +1,35 @@
 # osu-beatmap-downloader
-Downloads all missing ranked, approved, qualified, and/or loved osu beatmaps since a given year.
 
-## How to use:
-1. Install Python3 https://www.python.org/downloads/
-2. Get an osu! api key https://old.ppy.sh/p/api
-3. Put beatmapdownloader.py and requirements.txt into a folder within your osu! folder (I did this for organization)
-4. Open cmd and type `cd pathtofolderyoucreated`
-5. Install dependencies by typing `pip install -r requirements.txt` in the same cmd
-6. Run the script by typing `python beatmapdownloader.py` in the same cmd
+[![Actions Status](https://github.com/segalll/osu-beatmap-downloader/workflows/CI/badge.svg)](https://github.com/segalll/osu-beatmap-downloader/actions)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+Downloads missing maps given a search query in bulk.
+
+## Usage
+### Download Python 3 (if necessary)
+https://www.python.org/downloads/
+### Get the code
+```
+git clone https://github.com/segalll/osu-beatmap-downloader
+cd osu-beatmap-downloader
+```
+
+### Register an osu! OAuth application
+https://osu.ppy.sh/home/account/edit#oauth
+
+
+Create a file in the same directory as this script called `.env` with the following contents:
+```
+CLIENT_ID=<your OAuth client id>
+CLIENT_SECRET=<your OAuth client secret>
+```
+
+### Install dependencies
+```
+pip install -r requirements.txt
+```
+
+### Running
+```
+python beatmapdownloader.py
+```
