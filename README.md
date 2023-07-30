@@ -1,6 +1,6 @@
 # osu-beatmap-downloader
 
-[![Actions Status](https://github.com/segalll/osu-beatmap-downloader/workflows/CI/badge.svg)](https://github.com/segalll/osu-beatmap-downloader/actions)
+[![Actions Status](https://github.com/segalll/osu-beatmap-downloader/workflows/build/badge.svg)](https://github.com/segalll/osu-beatmap-downloader/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 Downloads missing [osu!](https://osu.ppy.sh/home) beatmapsets in bulk.
